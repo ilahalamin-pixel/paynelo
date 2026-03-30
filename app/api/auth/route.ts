@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -25,9 +27,8 @@ export async function POST(request: Request) {
     from: 'Paynelo <noreply@paynelo.com>',
     to: email,
     subject: 'Your login link for Paynelo',
-    html: `<p>Hi there,</p><p>Click the link below to log in to Paynelo:</p><p><a href="${magicLink}">Log in to Paynelo</a></p><p>This link expires in 1 hour.</p>`,
+    html: `<p>Hi there,</p><p>Click the link below to log in to Paynelo</p><p><a href="${magicLink}">Log in to Paynelo</a></p>`,
   })
 
   return NextResponse.json({ success: true })
 }
-export const dynamic = 'force-dynamic'
