@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
-  const resend = new Resend(process.env.RESEND_API_KEY)
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,8 +29,8 @@ export async function POST(request: Request) {
 
   const magicLink = data.properties.action_link
 
-  await resend.emails.send({
-    from: 'Paynelo <noreply@paynelo.com>',
+  await transporter.sendMail({
+    from: 'Paynelo <alaminilah@gmail.com>',
     to: email,
     subject: 'Your login link for Paynelo',
     html: `<p>Hi there,</p><p>Click the link below to log in to Paynelo</p><p><a href="${magicLink}">Log in to Paynelo</a></p>`,
