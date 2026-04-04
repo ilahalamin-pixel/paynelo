@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [marking, setMarking] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -46,20 +47,20 @@ export default function DashboardPage() {
 
   const markAsPaid = async (id: string) => {
     setMarking(id)
-    const { error } = await supabase
-      .from('invoices')
-      .update({ status: 'paid' })
-      .eq('id', id)
-    if (!error) {
-      setInvoices(invoices.map(inv => inv.id === id ? { ...inv, status: 'paid' } : inv))
-    }
+    const { error } = await supabase.from('invoices').update({ status: 'paid' }).eq('id', id)
+    if (!error) setInvoices(invoices.map(inv => inv.id === id ? { ...inv, status: 'paid' } : inv))
     setMarking(null)
   }
 
-  const totalOutstanding = invoices
-    .filter(i => getStatus(i) !== 'paid')
-    .reduce((sum, i) => sum + i.amount, 0)
+  const deleteInvoice = async (id: string, name: string) => {
+    if (!confirm(`Delete invoice for ${name}? This cannot be undone.`)) return
+    setDeleting(id)
+    const { error } = await supabase.from('invoices').delete().eq('id', id)
+    if (!error) setInvoices(invoices.filter(inv => inv.id !== id))
+    setDeleting(null)
+  }
 
+  const totalOutstanding = invoices.filter(i => getStatus(i) !== 'paid').reduce((sum, i) => sum + i.amount, 0)
   const overdueCount = invoices.filter(i => getStatus(i) === 'overdue').length
   const paidCount = invoices.filter(i => getStatus(i) === 'paid').length
 
@@ -70,22 +71,14 @@ export default function DashboardPage() {
       paid: { background: 'rgba(26,122,74,0.08)', color: '#1a7a4a' },
       unpaid: { background: 'rgba(0,0,0,0.05)', color: '#6b6b66' },
     }
-    const labels: Record<string, string> = {
-      overdue: 'Overdue',
-      paid: 'Paid',
-      unpaid: 'Unpaid',
-    }
-    return (
-      <span style={{ ...styles[s], fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 100 }}>
-        {labels[s]}
-      </span>
-    )
+    const labels: Record<string, string> = { overdue: 'Overdue', paid: 'Paid', unpaid: 'Unpaid' }
+    return <span style={{ ...styles[s], fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 100 }}>{labels[s]}</span>
   }
 
   return (
     <div style={{ minHeight: '100vh', background: '#f7f7f5', fontFamily: 'DM Sans, system-ui, sans-serif' }}>
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.1rem 2.5rem', background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', borderBottom: '0.5px solid rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 21, color: '#1a1a18', letterSpacing: '-0.02em' }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 21, color: '#1a1a18' }}>
           <span style={{ color: '#1a7a4a' }}>Pay</span>nelo
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -97,16 +90,14 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '3rem 1.5rem' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '3rem 1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2.5rem', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', color: '#1a1a18', letterSpacing: '-0.03em', marginBottom: 6 }}>
-              Your invoices
-            </h1>
+            <h1 style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', color: '#1a1a18', letterSpacing: '-0.03em', marginBottom: 6 }}>Your invoices</h1>
             <p style={{ fontSize: 14, color: '#6b6b66', fontWeight: 300 }}>Paynelo is watching these and will follow up automatically.</p>
           </div>
           <button onClick={() => router.push('/invoices/add')}
-            style={{ background: '#0f1a10', color: '#ffffff', border: 'none', borderRadius: 100, padding: '11px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ background: '#0f1a10', color: '#fff', border: 'none', borderRadius: 100, padding: '11px 24px', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
             + Add invoice
           </button>
         </div>
@@ -114,11 +105,11 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: '2.5rem' }}>
           {[
             { label: 'Outstanding', value: `$${totalOutstanding.toLocaleString()}`, sub: 'across all invoices', color: '#1a1a18' },
-            { label: 'Overdue', value: overdueCount.toString(), sub: overdueCount === 1 ? 'needs attention' : 'need attention', color: overdueCount > 0 ? '#b91c1c' : '#1a1a18' },
+            { label: 'Overdue', value: overdueCount.toString(), sub: 'need attention', color: overdueCount > 0 ? '#b91c1c' : '#1a1a18' },
             { label: 'Paid', value: paidCount.toString(), sub: 'invoices settled', color: '#1a7a4a' },
             { label: 'Total', value: invoices.length.toString(), sub: 'invoices tracked', color: '#1a1a18' },
           ].map(stat => (
-            <div key={stat.label} style={{ background: '#ffffff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '1.3rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+            <div key={stat.label} style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '1.3rem 1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: 12, color: '#a8a8a2', fontWeight: 500, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>{stat.label}</div>
               <div style={{ fontSize: 28, fontWeight: 600, color: stat.color, letterSpacing: '-0.02em', marginBottom: 4 }}>{stat.value}</div>
               <div style={{ fontSize: 12, color: '#a8a8a2' }}>{stat.sub}</div>
@@ -126,7 +117,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div style={{ background: '#ffffff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.05)' }}>
+        <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.05)' }}>
           {loading ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#a8a8a2', fontSize: 14 }}>Loading invoices...</div>
           ) : invoices.length === 0 ? (
@@ -140,13 +131,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto auto', gap: 16, padding: '12px 24px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: '#f7f7f5' }}>
-                {['Client', 'Due date', 'Amount', 'Status', ''].map(h => (
-                  <div key={h} style={{ fontSize: 11, fontWeight: 500, color: '#a8a8a2', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr auto auto auto auto', gap: 12, padding: '12px 24px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: '#f7f7f5' }}>
+                {['Client', 'Due date', 'Amount', 'Status', '', ''].map((h, i) => (
+                  <div key={i} style={{ fontSize: 11, fontWeight: 500, color: '#a8a8a2', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</div>
                 ))}
               </div>
               {invoices.map((inv, i) => (
-                <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto auto', gap: 16, padding: '16px 24px', borderBottom: i < invoices.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none', alignItems: 'center' }}>
+                <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr auto auto auto auto', gap: 12, padding: '16px 24px', borderBottom: i < invoices.length - 1 ? '0.5px solid rgba(0,0,0,0.06)' : 'none', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#1a1a18', marginBottom: 3 }}>{inv.client_name}</div>
                     <div style={{ fontSize: 12, color: '#a8a8a2' }}>{inv.client_email}</div>
@@ -159,20 +150,18 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 14, color: '#6b6b66' }}>
                     {new Date(inv.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>
-                    {inv.currency} {Number(inv.amount).toLocaleString()}
-                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>{inv.currency} {Number(inv.amount).toLocaleString()}</div>
                   {statusBadge(inv)}
                   {getStatus(inv) !== 'paid' ? (
-                    <button
-                      onClick={() => markAsPaid(inv.id)}
-                      disabled={marking === inv.id}
+                    <button onClick={() => markAsPaid(inv.id)} disabled={marking === inv.id}
                       style={{ fontSize: 12, padding: '5px 12px', background: 'none', border: '0.5px solid rgba(26,122,74,0.3)', borderRadius: 100, color: '#1a7a4a', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                       {marking === inv.id ? '...' : 'Mark paid'}
                     </button>
-                  ) : (
-                    <div></div>
-                  )}
+                  ) : <div />}
+                  <button onClick={() => deleteInvoice(inv.id, inv.client_name)} disabled={deleting === inv.id}
+                    style={{ fontSize: 12, padding: '5px 12px', background: 'none', border: '0.5px solid rgba(220,38,38,0.2)', borderRadius: 100, color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                    {deleting === inv.id ? '...' : 'Delete'}
+                  </button>
                 </div>
               ))}
             </>
