@@ -85,7 +85,8 @@ export default function DashboardPage() {
           <span style={{ fontSize: 13, color: '#6b6b66' }}>{userEmail}</span>
           <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }}
             style={{ background: 'none', border: '0.5px solid rgba(0,0,0,0.14)', borderRadius: 100, padding: '7px 18px', fontSize: 13, color: '#6b6b66', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Sign out
+          <button onClick={() => router.push("/upgrade")} style={{ background: "none", border: "0.5px solid rgba(26,122,74,0.3)", borderRadius: 100, padding: "7px 18px", fontSize: 13, color: "#1a7a4a", cursor: "pointer", fontFamily: "inherit", marginRight: 8 }}>Upgrade</button>
+          <button onClick={async () => { await supabase.auth.signOut(); router.push("/") }} style={{ background: "none", border: "0.5px solid rgba(0,0,0,0.14)", borderRadius: 100, padding: "7px 18px", fontSize: 13, color: "#6b6b66", cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
           </button>
         </div>
       </nav>
