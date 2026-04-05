@@ -141,6 +141,9 @@ export default function HomePage() {
               <button onClick={() => { setIsSignUp(!isSignUp); setError('') }}
                 style={{ background: 'none', border: 'none', color: '#1a7a4a', fontWeight: 500, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
                 {isSignUp ? 'Sign in' : 'Sign up free'}
+              </p>
+              <p style={{ fontSize: 13, color: '#6b6b66', marginTop: 8, textAlign: 'center' }}>
+                <button onClick={() => router.push('/forgot-password')} style={{ background: 'none', border: 'none', color: '#a8a8a2', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', textDecoration: 'underline' }}>Forgot password?</button>
               </button>
             </p>
           </div>
