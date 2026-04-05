@@ -7,8 +7,10 @@ import { supabase } from '@/lib/supabase'
 export default function HomePage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const checkUser = async () => {
@@ -22,16 +24,19 @@ export default function HomePage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
+    setError('')
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) setError(error.message)
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError('Wrong email or password. Try again.')
+    }
     setLoading(false)
-    setSent(true)
   }
 
   const plans = [
@@ -98,25 +103,47 @@ export default function HomePage() {
           Free to start &nbsp;·&nbsp; No awkward emails &nbsp;·&nbsp; Cancel anytime
         </p>
 
-        <div id="get-started" style={{ width: '100%', maxWidth: 440 }}>
-          {sent ? (
-            <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 20, padding: '2.5rem 2rem', boxShadow: '0 8px 40px rgba(0,0,0,0.07)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📬</div>
-              <p style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 22, color: '#1a1a18', marginBottom: 8 }}>Check your inbox</p>
-              <p style={{ fontSize: 14, color: '#6b6b66', fontWeight: 300, lineHeight: 1.7 }}>We sent a login link to <strong style={{ color: '#1a1a18', fontWeight: 500 }}>{email}</strong>. Click it to start.</p>
-              <button onClick={() => setSent(false)} style={{ marginTop: 16, background: 'none', border: 'none', fontSize: 12, color: '#a8a8a2', cursor: 'pointer', textDecoration: 'underline' }}>Use a different email</button>
-            </div>
-          ) : (
-            <form onSubmit={handleLogin} style={{ display: 'flex', gap: 8, width: '100%' }}>
-              <input type="email" required placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)}
-                style={{ flex: 1, padding: '14px 18px', background: '#fff', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 100, fontSize: 15, color: '#1a1a18', outline: 'none', fontFamily: 'inherit', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }} />
-              <button type="submit" disabled={loading}
-                style={{ padding: '14px 26px', background: '#0f1a10', color: '#fff', border: 'none', borderRadius: 100, fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {loading ? '...' : 'Get started free'}
+        {/* Auth card */}
+        <div id="get-started" style={{ width: '100%', maxWidth: 400 }}>
+          <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 20, padding: '2.5rem 2rem', boxShadow: '0 8px 40px rgba(0,0,0,0.07)' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 300, fontSize: 22, color: '#1a1a18', marginBottom: 20 }}>
+              {isSignUp ? 'Create your account' : 'Welcome back'}
+            </h2>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                type="email"
+                required
+                placeholder="Email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={{ width: '100%', padding: '12px 16px', background: '#f7f7f5', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 10, fontSize: 15, color: '#1a1a18', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <input
+                type="password"
+                required
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                style={{ width: '100%', padding: '12px 16px', background: '#f7f7f5', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 10, fontSize: 15, color: '#1a1a18', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              {error && (
+                <p style={{ fontSize: 13, color: '#b91c1c', background: 'rgba(220,38,38,0.06)', padding: '10px 14px', borderRadius: 8, margin: 0 }}>{error}</p>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ width: '100%', padding: '13px', background: loading ? '#f0efeb' : '#0f1a10', color: loading ? '#a8a8a2' : '#fff', border: 'none', borderRadius: 100, fontSize: 15, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+                {loading ? '...' : isSignUp ? 'Create account' : 'Sign in'}
               </button>
             </form>
-          )}
-          <p style={{ fontSize: 12, color: '#a8a8a2', marginTop: 14 }}>No password. No credit card. Just your email.</p>
+            <p style={{ fontSize: 13, color: '#6b6b66', marginTop: 16, textAlign: 'center' }}>
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button onClick={() => { setIsSignUp(!isSignUp); setError('') }}
+                style={{ background: 'none', border: 'none', color: '#1a7a4a', fontWeight: 500, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+                {isSignUp ? 'Sign in' : 'Sign up free'}
+              </button>
+            </p>
+          </div>
         </div>
 
         {/* Email preview card */}
@@ -215,7 +242,7 @@ export default function HomePage() {
                   </div>
                 ))}
                 <button onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
-                  style={{ width: '100%', marginTop: 28, padding: '13px', background: plan.highlight ? '#c8f075' : 'none', color: plan.highlight ? '#0f1a10' : '#0f1a10', border: plan.highlight ? 'none' : '0.5px solid rgba(0,0,0,0.2)', borderRadius: 100, fontSize: 14, fontWeight: plan.highlight ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ width: '100%', marginTop: 28, padding: '13px', background: plan.highlight ? '#c8f075' : 'none', color: '#0f1a10', border: plan.highlight ? 'none' : '0.5px solid rgba(0,0,0,0.2)', borderRadius: 100, fontSize: 14, fontWeight: plan.highlight ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {plan.cta}
                 </button>
               </div>
