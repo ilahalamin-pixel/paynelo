@@ -40,33 +40,59 @@ export async function GET(request: NextRequest) {
 
     if (!shouldSend) continue
 
-    const followupNumber = invoice.followup_count + 1
-    const subjects = [
-      `Friendly reminder: Invoice for ${invoice.currency} ${invoice.amount} is overdue`,
-      `Following up: Invoice for ${invoice.currency} ${invoice.amount} — now ${daysSinceDue} days overdue`,
-      `Final notice: Invoice for ${invoice.currency} ${invoice.amount} requires immediate attention`,
-    ]
-
-    const messages = [
-      `Hi ${invoice.client_name},\n\nI hope you are doing well. I just wanted to send a friendly reminder that invoice for ${invoice.currency} ${Number(invoice.amount).toLocaleString()} was due on ${new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.\n\nIf you have already sent payment, please ignore this email. If not, I would appreciate if you could arrange payment at your earliest convenience.\n\nThank you!`,
-      `Hi ${invoice.client_name},\n\nI am following up again on the invoice for ${invoice.currency} ${Number(invoice.amount).toLocaleString()}, which is now ${daysSinceDue} days overdue.\n\nCould you please let me know when we can expect payment? If there is an issue, I am happy to help resolve it.\n\nThank you for your attention to this matter.`,
-      `Hi ${invoice.client_name},\n\nThis is a final notice regarding the invoice for ${invoice.currency} ${Number(invoice.amount).toLocaleString()}, now ${daysSinceDue} days overdue.\n\nPlease arrange payment immediately or contact me to discuss this matter urgently.\n\nThank you.`,
-    ]
-
     const { data: userData } = await supabase.auth.admin.getUserById(invoice.user_id)
     const userEmail = userData?.user?.email
     if (!userEmail) continue
+
+    const dueDate = new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    const amount = `${invoice.currency} ${Number(invoice.amount).toLocaleString()}`
+    const name = invoice.client_name.split(' ')[0]
+
+    const emails = [
+      {
+        subject: `Quick one — invoice for ${amount}`,
+        html: `
+          <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a18;line-height:1.8;font-size:15px">
+            <p>Hi ${name},</p>
+            <p>Hope you're doing well! I just wanted to check in — the invoice for <strong>${amount}</strong> was due on ${dueDate} and I haven't seen it come through yet.</p>
+            <p>Totally understand things get busy. If there's anything holding it up or if you need a different payment method, just reply to this email and we'll sort it out.</p>
+            <p>Otherwise, would really appreciate payment when you get a chance!</p>
+            <p>Thanks so much,<br/><span style="color:#6b6b66;font-size:13px">Sent via Paynelo on behalf of ${userEmail}</span></p>
+          </div>
+        `
+      },
+      {
+        subject: `Following up — invoice for ${amount} (${daysSinceDue} days overdue)`,
+        html: `
+          <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a18;line-height:1.8;font-size:15px">
+            <p>Hi ${name},</p>
+            <p>I'm following up again on the invoice for <strong>${amount}</strong>, which was due on ${dueDate} — it's now ${daysSinceDue} days overdue.</p>
+            <p>I'd really like to get this resolved. Is there anything on your end causing a delay? Happy to jump on a quick call or work something out if needed.</p>
+            <p>Please let me know either way — even a quick reply helps me know what to expect.</p>
+            <p>Thanks,<br/><span style="color:#6b6b66;font-size:13px">Sent via Paynelo on behalf of ${userEmail}</span></p>
+          </div>
+        `
+      },
+      {
+        subject: `Final notice — invoice for ${amount}`,
+        html: `
+          <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a18;line-height:1.8;font-size:15px">
+            <p>Hi ${name},</p>
+            <p>This is my final follow-up regarding the invoice for <strong>${amount}</strong>, now ${daysSinceDue} days overdue since ${dueDate}.</p>
+            <p>I've reached out a few times without a response. I need this resolved urgently — please arrange payment immediately or contact me directly to discuss.</p>
+            <p>If I don't hear back, I may need to explore other options to recover this amount.</p>
+            <p>I hope we can sort this out,<br/><span style="color:#6b6b66;font-size:13px">Sent via Paynelo on behalf of ${userEmail}</span></p>
+          </div>
+        `
+      }
+    ]
 
     const result = await resend.emails.send({
       from: 'Paynelo <noreply@paynelo.com>',
       to: invoice.client_email,
       replyTo: userEmail,
-      subject: subjects[invoice.followup_count],
-      html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;color:#1a1a18">
-        <p style="font-size:14px;line-height:1.8;white-space:pre-line">${messages[invoice.followup_count]}</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-        <p style="font-size:11px;color:#a8a8a2">Sent via Paynelo</p>
-      </div>`,
+      subject: emails[invoice.followup_count].subject,
+      html: emails[invoice.followup_count].html,
     })
 
     if (!result.error) {
@@ -78,7 +104,7 @@ export async function GET(request: NextRequest) {
         })
         .eq('id', invoice.id)
 
-      results.push({ invoice_id: invoice.id, client: invoice.client_name, followup: followupNumber })
+      results.push({ invoice_id: invoice.id, client: invoice.client_name, followup: invoice.followup_count + 1 })
     }
   }
 
